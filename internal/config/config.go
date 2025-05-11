@@ -1,10 +1,10 @@
 // internal/config/config.go
 package config
 
-type Config struct{
+// type Config struct{
 
-}
+// }
 
-func MustLoad *Config{
-	
-} 
+// func MustLoad *Config{
+
+// }
