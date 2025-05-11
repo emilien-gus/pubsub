@@ -37,5 +37,5 @@ grpcurl -plaintext -proto proto/pubsub.proto   -d '{"key": "test"}'   localhost:
 ```
 Пример создания публикации:
 ```bash
- grpcurl -plaintext -proto proto/pubsub.proto   -d '{"key": "test1", "data": "Hello"}'   localhost:50051 pubsub.PubSub/Publish
+ grpcurl -plaintext -proto proto/pubsub.proto   -d '{"key": "test", "data": "Hello"}'   localhost:50051 pubsub.PubSub/Publish
 ```
