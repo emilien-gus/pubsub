@@ -21,6 +21,6 @@ type SubPub interface {
 	Close(ctx context.Context) error
 }
 
-func NewSubPub() SubPub {
-	panic("Implement me")
+func NewSubPub(chanBufferSize int) SubPub {
+	return NewBroker(chanBufferSize)
 }

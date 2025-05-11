@@ -1,6 +1,11 @@
 // proto/pubsub.proto
-import "google/protobuf/empty.proto";
 syntax = "proto3";
+package pubsub;
+
+option go_package = "gen;pubsub";
+
+import "google/protobuf/empty.proto";
+
 service PubSub {
     // Подписка (сервер отправляет поток событий)
     rpc Subscribe(SubscribeRequest) returns (stream Event);
