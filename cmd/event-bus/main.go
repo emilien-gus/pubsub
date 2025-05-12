@@ -25,9 +25,11 @@ func main() {
 	}
 	portStr := strconv.Itoa(cfg.Port)
 	shutdownTimeout := cfg.Timeout()
+
 	// init dependencies
+	serviveCtx, serviceCancel := context.WithCancel(context.Background())
 	ps := pubsub.NewSubPub(cfg.ChannelBufferSize)
-	grpcService := grpcservice.NewPubSubService(ps)
+	grpcService := grpcservice.NewPubSubService(serviveCtx, ps)
 
 	// creating gRPC server
 	grpcServer := grpc.NewServer(
@@ -66,6 +68,7 @@ func main() {
 
 	stopped := make(chan struct{})
 	go func() {
+		serviceCancel()
 		grpcServer.GracefulStop()
 		close(stopped)
 	}()
