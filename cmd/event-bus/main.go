@@ -36,7 +36,7 @@ func main() {
 	)
 	pb.RegisterPubSubServer(grpcServer, grpcService)
 
-	// Запуск сервера
+	// starting server
 	lis, err := net.Listen("tcp", ":"+portStr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -49,7 +49,7 @@ func main() {
 		}
 	}()
 
-	// Ожидание сигналов для graceful shutdown
+	// waiting SIGTERM or SIGINT for graceful shutdown
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 	<-stop
@@ -58,6 +58,11 @@ func main() {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
+
+	if err := ps.Close(shutdownCtx); err != nil {
+		log.Printf("error closing pubsub: %v", err)
+	}
+	log.Printf("pubsub service is closed")
 
 	stopped := make(chan struct{})
 	go func() {
@@ -71,11 +76,6 @@ func main() {
 	case <-shutdownCtx.Done():
 		log.Println("gRPC server forced to stop due to timeout")
 		grpcServer.Stop()
-	}
-
-	// closing pubsub service
-	if err := ps.Close(shutdownCtx); err != nil {
-		log.Printf("error closing pubsub: %v", err)
 	}
 
 	log.Println("Shutdown completed")

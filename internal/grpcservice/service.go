@@ -35,8 +35,9 @@ func (s *PubSubService) Subscribe(req *pb.SubscribeRequest, stream pb.PubSub_Sub
 	log.Printf("new subscription for key: %s", key)
 	defer log.Printf("unsubscribed from key: %s", key)
 
-	// chanel for error handling
+	// Buffered channel for error handling with context-aware closing
 	errCh := make(chan error, 1)
+	defer close(errCh)
 
 	// Creating new subscriber
 	sub, err := s.subpub.Subscribe(key, func(msg interface{}) {
@@ -48,14 +49,17 @@ func (s *PubSubService) Subscribe(req *pb.SubscribeRequest, stream pb.PubSub_Sub
 
 		strMsg, ok := msg.(string)
 		if !ok {
-			errCh <- status.Errorf(codes.Internal, "invalid message type: %T", msg)
+			select {
+			case errCh <- status.Errorf(codes.Internal, "invalid message type: %T", msg):
+			case <-ctx.Done():
+			}
 			return
 		}
 
 		if err := stream.Send(&pb.Event{Data: strMsg}); err != nil {
 			select {
 			case errCh <- err:
-			default:
+			case <-ctx.Done():
 			}
 		}
 	})
@@ -64,7 +68,6 @@ func (s *PubSubService) Subscribe(req *pb.SubscribeRequest, stream pb.PubSub_Sub
 	}
 	defer sub.Unsubscribe()
 
-	// waiting for context.Done or writing in errCh
 	select {
 	case <-ctx.Done():
 		return handleContextError(ctx)
