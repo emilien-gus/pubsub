@@ -145,3 +145,7 @@ func (b *Broker) Close(ctx context.Context) error {
 		return nil
 	}
 }
+
+func (b *Broker) Closed() <-chan struct{} {
+	return b.closed
+}

@@ -16,11 +16,13 @@ import (
 type PubSubService struct {
 	pb.UnimplementedPubSubServer
 	subpub pubsub.SubPub
+	ctx    context.Context
 }
 
-func NewPubSubService(subpub pubsub.SubPub) *PubSubService {
+func NewPubSubService(ctx context.Context, subpub pubsub.SubPub) *PubSubService {
 	return &PubSubService{
 		subpub: subpub,
+		ctx:    ctx,
 	}
 }
 
@@ -35,7 +37,7 @@ func (s *PubSubService) Subscribe(req *pb.SubscribeRequest, stream pb.PubSub_Sub
 	log.Printf("new subscription for key: %s", key)
 	defer log.Printf("unsubscribed from key: %s", key)
 
-	// chanel for error handling
+	// Buffered channel for error handling with context-aware closing
 	errCh := make(chan error, 1)
 
 	// Creating new subscriber
@@ -48,14 +50,17 @@ func (s *PubSubService) Subscribe(req *pb.SubscribeRequest, stream pb.PubSub_Sub
 
 		strMsg, ok := msg.(string)
 		if !ok {
-			errCh <- status.Errorf(codes.Internal, "invalid message type: %T", msg)
+			select {
+			case errCh <- status.Errorf(codes.Internal, "invalid message type: %T", msg):
+			case <-ctx.Done():
+			}
 			return
 		}
 
 		if err := stream.Send(&pb.Event{Data: strMsg}); err != nil {
 			select {
 			case errCh <- err:
-			default:
+			case <-ctx.Done():
 			}
 		}
 	})
@@ -64,14 +69,12 @@ func (s *PubSubService) Subscribe(req *pb.SubscribeRequest, stream pb.PubSub_Sub
 	}
 	defer sub.Unsubscribe()
 
-	// waiting for context.Done or writing in errCh
 	select {
 	case <-ctx.Done():
 		return handleContextError(ctx)
+	case <-s.ctx.Done():
+		return status.Error(codes.Unavailable, "server is shutting down")
 	case err := <-errCh:
-		if status.Code(err) == codes.Internal {
-			log.Printf("subscription error for key %s: %v", key, err)
-		}
 		return err
 	}
 }
